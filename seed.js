@@ -1,78 +1,74 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
+require("dotenv").config();
+const mongoose = require("mongoose");
+const connectDB = require("./src/config/db");
 
-// Replace or align with your Challenge model schema
-const challengeSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  category: { type: String, default: 'General' },
-  raisedBy: { type: String, required: true },
-  raisedByType: { type: String, enum: ['Citizen', 'Institution'], default: 'Citizen' },
-  district: { type: String, default: 'Ranchi' },
-  status: { type: String, default: 'open' },
-  createdAt: { type: Date, default: Date.now }
-});
+let Issue;
+try {
+  Issue = require("./src/models/Issue");
+} catch {
+  Issue = require("./src/models/issueModel");
+}
 
-const Challenge = mongoose.models.Challenge || mongoose.model('Challenge', challengeSchema);
-
-const sampleChallenges = [
-  {
-    title: "Clean Drinking Water Monitoring System",
-    description: "Deploying low-cost IoT sensors to detect mineral runoff and contamination in local tube wells.",
-    category: "Water & Sanitation",
-    raisedBy: "BIT Mesra Research Cell",
-    raisedByType: "Institution",
-    district: "Ranchi",
-    status: "open"
-  },
-  {
-    title: "Solar Cold Storage for Mahua & Forest Produce",
-    description: "Tribal farmers require small-scale decentralized cold chain storage to prevent spoilage of seasonal forest harvests.",
-    category: "Agriculture & Rural Tech",
-    raisedBy: "Ramesh Soren (Farmer Collective)",
-    raisedByType: "Citizen",
-    district: "Khunti",
-    status: "open"
-  },
-  {
-    title: "Pothole & Road Hazard Crowdsourcing App",
-    description: "A mobile-first image recognition tool for reporting monsoon road cave-ins directly to the Municipal Corporation.",
-    category: "Urban Infrastructure",
-    raisedBy: "Jamshedpur Citizen Forum",
-    raisedByType: "Citizen",
-    district: "East Singhbhum",
-    status: "open"
-  },
-  {
-    title: "AI-Assisted Maternal Healthcare Tele-Consultation",
-    description: "Automated multilingual triage assistance for Anganwadi workers in remote rural primary health centers.",
-    category: "Healthcare",
-    raisedBy: "RIMS Community Health Dept",
-    raisedByType: "Institution",
-    district: "Dhanbad",
-    status: "open"
-  }
-];
-
-async function seedDB() {
+async function runSeed() {
   try {
-    const uri = process.env.MONGO_URI;
-    if (!uri) {
-      throw new Error("MONGO_URI not found in your environment or .env file.");
-    }
-    await mongoose.connect(uri);
+    await connectDB();
     console.log("Connected to MongoDB Atlas.");
 
-    // Clear existing empty or test records and insert sample data
-    await Challenge.deleteMany({});
-    await Challenge.insertMany(sampleChallenges);
+    // Generate a valid 24-character hexadecimal ObjectId
+    const dummyUserId = new mongoose.Types.ObjectId();
 
-    console.log("Successfully seeded 4 sample challenges!");
+    const sampleIssues = [
+      {
+        title: "Clean Drinking Water Monitoring System",
+        description: "Deploying low-cost IoT sensors to detect mineral runoff and contamination in local tube wells.",
+        sector: "Water & Sanitation",
+        district: "Ranchi",
+        submittedBy: dummyUserId,
+        status: "approved",
+        upvotes: 24,
+        createdAt: new Date()
+      },
+      {
+        title: "Solar Cold Storage for Mahua & Forest Produce",
+        description: "Decentralized solar cold chain storage to prevent spoilage of seasonal forest harvests for local farmers.",
+        sector: "Agriculture",
+        district: "Khunti",
+        submittedBy: dummyUserId,
+        status: "approved",
+        upvotes: 38,
+        createdAt: new Date()
+      },
+      {
+        title: "Pothole & Monsoon Road Cave-in Crowdsourcing Tool",
+        description: "Mobile image-reporting tool for road washouts that forwards geo-tagged photos to the municipal desk.",
+        sector: "Infrastructure",
+        district: "East Singhbhum",
+        submittedBy: dummyUserId,
+        status: "approved",
+        upvotes: 19,
+        createdAt: new Date()
+      },
+      {
+        title: "AI Maternal Healthcare Tele-Consultation",
+        description: "Multilingual triage assistant for Anganwadi workers operating in remote rural primary health centers.",
+        sector: "Healthcare",
+        district: "Dhanbad",
+        submittedBy: dummyUserId,
+        status: "approved",
+        upvotes: 31,
+        createdAt: new Date()
+      }
+    ];
+
+    await Issue.deleteMany({});
+    await Issue.insertMany(sampleIssues);
+
+    console.log("Successfully seeded 4 approved sample issues into MongoDB!");
     process.exit(0);
   } catch (err) {
-    console.error("Seeding error:", err);
+    console.error("Seeding failed:", err);
     process.exit(1);
   }
 }
 
-seedDB();
+runSeed();
