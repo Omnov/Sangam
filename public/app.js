@@ -234,11 +234,25 @@ function issueCardHTML(issue) {
     </div>`;
 }
 
+function getSelectedIssuesForUser(userId) {
+  try {
+    const raw = localStorage.getItem(`sangam_selected_issues_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSelectedIssuesForUser(userId, list) {
+  localStorage.setItem(`sangam_selected_issues_${userId}`, JSON.stringify(list));
+}
+
 function wireIssueCardActions(issues) {
   if (!currentUser) return;
 
   const currentUserId = String(currentUser._id || currentUser.id || "");
   const role = currentUser.role;
+  let userSelections = getSelectedIssuesForUser(currentUserId);
 
   issues.forEach((issue) => {
     const box = document.querySelector(`[data-actions-for="${issue._id}"]`);
@@ -251,8 +265,9 @@ function wireIssueCardActions(issues) {
     const isSubmitter = submitterId && submitterId === currentUserId;
     const isEngagedInst = role === "institution" && currentInstId && engagedInstId === currentInstId;
     const isAdmin = role === "admin";
+    const isSelectedByUser = userSelections.includes(String(issue._id));
 
-    // 1. Admin Review Button
+    // 1. Admin Review Button for pending challenges
     if (isAdmin && issue.status === "pending_review") {
       box.innerHTML = `<button class="btn-primary-small" data-act="approve">Approve Challenge</button>`;
       box.querySelector('[data-act="approve"]').onclick = async () => {
@@ -266,47 +281,55 @@ function wireIssueCardActions(issues) {
       return;
     }
 
-    // 2. Institution Engagement (Official Claim)
-    if (role === "institution" && issue.status === "approved" && !issue.engagedInstitution) {
+    // 2. Selected State (Shows green check badge & Cancel button for any logged-in user)
+    if (isSelectedByUser) {
       box.innerHTML = `
-        <button class="btn-primary-small" style="margin-top:0.75rem; background:#1b4332; color:#fff;" data-act="claim-issue">
-          Select & Engage Challenge
+        <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+          <span style="display: inline-flex; align-items: center; gap: 0.35rem; color: #166534; background: #dcfce7; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; border: 1px solid #bbf7d0;">
+            ✓ Selected to Solve
+          </span>
+          <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.65rem; color: #b91c1c; border-color: #fca5a5; cursor: pointer;" data-act="cancel-select">
+            Cancel Selection
+          </button>
+        </div>`;
+
+      box.querySelector('[data-act="cancel-select"]').onclick = () => {
+        userSelections = userSelections.filter((id) => id !== String(issue._id));
+        saveSelectedIssuesForUser(currentUserId, userSelections);
+        wireIssueCardActions(issues);
+      };
+      return;
+    }
+
+    // 3. Unselected State: Available to choose
+    if (["student", "faculty", "citizen", "institution"].includes(role) && issue.status === "approved") {
+      box.innerHTML = `
+        <button class="btn-secondary" style="margin-top: 0.75rem; font-size: 0.82rem; padding: 0.45rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;" data-act="select-issue">
+          <span>✦</span> Select this Challenge
         </button>`;
 
-      box.querySelector('[data-act="claim-issue"]').onclick = async () => {
-        if (!confirm(`Commit your institution to solving "${issue.title}"?`)) return;
-        try {
-          await api(`/issues/${issue._id}/engage`, { method: "PATCH" });
-          alert("Challenge successfully engaged! Admin and citizens have been notified.");
-          loadIssues();
-        } catch (err) {
-          alert("Could not engage challenge: " + err.message);
+      box.querySelector('[data-act="select-issue"]').onclick = async () => {
+        // If institution, optionally claim on the backend as well
+        if (role === "institution" && !issue.engagedInstitution) {
+          try {
+            await api(`/issues/${issue._id}/engage`, { method: "PATCH" });
+          } catch (e) {
+            // Proceed to save selection locally if offline/demo
+          }
         }
+
+        userSelections.push(String(issue._id));
+        saveSelectedIssuesForUser(currentUserId, userSelections);
+        wireIssueCardActions(issues);
       };
       return;
     }
 
-    // 3. Any Logged-In User (Student, Faculty, Citizen) Expressing Interest
-    if (["student", "faculty", "citizen"].includes(role) && issue.status === "approved") {
-      box.innerHTML = `
-        <button class="btn-secondary" style="margin-top:0.75rem; font-size:0.82rem; padding:0.4rem 0.8rem; cursor:pointer;" data-act="select-interest">
-          ✦ I want to solve this
-        </button>`;
-
-      box.querySelector('[data-act="select-interest"]').onclick = async () => {
-        alert(
-          `Interest recorded for ${currentUser.name} (${currentUser.role})!\n` +
-          `The participating institutions and admins can now see your team candidacy for: "${issue.title}".`
-        );
-      };
-      return;
-    }
-
-    // 4. Close & Mark Solved (Submitter, Engaged Institution, Admin)
+    // 4. Mark Solved button for authorized leads/creators
     if (issue.status !== "solved" && issue.status !== "rejected") {
       if (isSubmitter || isEngagedInst || isAdmin) {
         box.innerHTML = `
-          <button class="btn-secondary" style="margin-top:0.75rem; color:#b91c1c; border-color:#fca5a5; font-size:0.82rem; padding:0.4rem 0.8rem; cursor:pointer;" data-act="mark-complete">
+          <button class="btn-secondary" style="margin-top: 0.75rem; color: #b91c1c; border-color: #fca5a5; font-size: 0.82rem; padding: 0.4rem 0.8rem; cursor: pointer;" data-act="mark-complete">
             ✓ End & Mark Solved
           </button>`;
 
