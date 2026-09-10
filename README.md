@@ -197,3 +197,4 @@ me which step number you were on. Almost every Node/Mongo error tells you
 precisely what's wrong if you read it — port already in use, wrong
 connection string, missing field — so the fastest fix is always pasting the
 real message rather than describing the symptom.
+# Sangam
