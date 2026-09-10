@@ -449,3 +449,115 @@ body {
   .hero-grid { grid-template-columns: 1fr; gap: 2rem; }
   .hero-heading { font-size: 2.8rem; }
 }
+
+/* ================= FOOTER STYLES ================= */
+.site-footer {
+  background: #0f172a;
+  color: #cbd5e1;
+  padding: 4rem 1.5rem 2rem;
+  margin-top: 5rem;
+  border-top: 1px solid #1e293b;
+  font-size: 0.9rem;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .footer-container {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.footer-logo {
+  font-size: 1.5rem;
+}
+
+.footer-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.02em;
+}
+
+.footer-tagline {
+  color: #94a3b8;
+  line-height: 1.5;
+  font-size: 0.88rem;
+  max-width: 320px;
+}
+
+.footer-col h5 {
+  color: #f8fafc;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.footer-col ul li a {
+  color: #94a3b8;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-col ul li a:hover {
+  color: #38bdf8;
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 3rem auto 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid #1e293b;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+/* Modal Popup Layout for Info Links */
+.info-modal-box {
+  max-width: 580px;
+  width: 90%;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1000;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.info-modal-box h3 {
+  margin: 0 0 1rem 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+}
+
+.info-modal-box p {
+  margin-bottom: 0.75rem;
+}

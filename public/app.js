@@ -418,3 +418,69 @@ if (token && currentUser) {
 } else {
   loadIssues();
 }
+/* ================= FOOTER & INFO MODALS ================= */
+const footerInfoContent = {
+  about: {
+    title: "About Sangam",
+    body: "<p><strong>Sangam</strong> is Jharkhand's centralized civic-innovation bridge. We connect everyday citizens, local panchayats, and civic bodies with leading engineering colleges, universities, and research institutes to prototype practical solutions for grassroots district challenges.</p>"
+  },
+  "how-it-works": {
+    title: "How It Works",
+    body: "<p>1. <strong>Citizens & Reps</strong> submit verified local infrastructural or civic issues.<br>2. <strong>Admins</strong> review and approve entries for public engagement.<br>3. <strong>Academic institutions & student teams</strong> claim challenges as capstone or funded research projects.<br>4. <strong>Solutions</strong> are deployed and validated in the district.</p>"
+  },
+  guidelines: {
+    title: "Submission Guidelines",
+    body: "<p>Please ensure submitted problems include specific geographic districts, clear environmental or operational impact descriptions, and non-partisan language. Commercial solicitations or personal grievances outside civic scope are rejected.</p>"
+  },
+  privacy: {
+    title: "Privacy Policy",
+    body: "<p>Citizen personal contact information, phone numbers, and direct email addresses are strictly masked and protected under public grievance guidelines. Only verified district nodal institutions have access to follow-up triage channels.</p>"
+  },
+  terms: {
+    title: "Terms of Service",
+    body: "<p>All submissions made under Sangam are dedicated to the public benefit. By submitting a problem or proposal, participants agree that non-confidential project milestones and public outcomes can be openly showcased across the state innovation repository.</p>"
+  },
+  "open-data": {
+    title: "Open Data Charter",
+    body: "<p>Sangam provides anonymized real-time API endpoints covering district challenge categories, problem resolution timelines, and university participation metrics to foster transparent civic accountability.</p>"
+  },
+  contact: {
+    title: "Support & Helpdesk",
+    body: "<p>Need technical assistance or help claiming a project? Reach out to the technical team at <strong>support@sangam.gov.in</strong> or phone the State Innovation Cell helpdesk at <strong>+91 (0651) 244-0000</strong>.</p>"
+  },
+  nodal: {
+    title: "District Nodal Officers",
+    body: "<p>Each of the 24 districts of Jharkhand maintains a verified District Innovation Nodal Officer stationed at the District Collectorate to verify community problem statements and expedite site testing permissions.</p>"
+  },
+  faq: {
+    title: "Frequently Asked Questions",
+    body: "<p><strong>Can any student team join?</strong> Yes, any enrolled undergraduate or graduate team under an affiliated Jharkhand university can participate.<br><br><strong>Is project funding provided?</strong> Select projects can apply directly for university seed grants or partner CSR innovation pools.</p>"
+  }
+};
+
+const infoModal = document.getElementById("info-modal");
+const infoTitle = document.getElementById("info-modal-title");
+const infoBody = document.getElementById("info-modal-body");
+const infoClose = document.getElementById("info-modal-close");
+const infoBackdrop = document.getElementById("info-modal-backdrop");
+
+document.querySelectorAll("[data-footer-modal]").forEach((link) => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    const key = link.getAttribute("data-footer-modal");
+    const data = footerInfoContent[key];
+    if (data && infoModal) {
+      infoTitle.textContent = data.title;
+      infoBody.innerHTML = data.body;
+      infoModal.classList.remove("hidden");
+    }
+  });
+});
+
+const closeInfoModal = () => infoModal?.classList.add("hidden");
+infoClose?.addEventListener("click", closeInfoModal);
+infoBackdrop?.addEventListener("click", closeInfoModal);
+
+// Auto-sync current year in copyright
+const yearEl = document.getElementById("footer-year");
+if (yearEl) yearEl.textContent = new Date().getFullYear();
