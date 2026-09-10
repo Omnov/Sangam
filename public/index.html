@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sangam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ================= TOPBAR ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">स</div>
+      <span class="brand-name">Sangam</span>
+    </div>
+
+    <div class="topbar-actions">
+      <div id="auth-actions" class="auth-buttons">
+        <button id="btn-show-login" class="nav-btn-link">Log in</button>
+        <button id="btn-show-register" class="btn-primary-small">Register</button>
+      </div>
+
+      <div id="who-am-i" class="who hidden">
+        <span id="whoami-text"></span>
+        <button id="btn-logout" class="nav-btn-link">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ================= HERO SECTION ================= -->
+    <section class="hero-grid">
+      <div class="hero-left">
+        <h1 class="hero-heading">
+          Jharkhand's<br>
+          problems, solved<br>
+          by the people who<br>
+          live them.
+        </h1>
+        <p class="hero-subtext">
+          Citizens raise real district-level challenges. Students and faculty build solutions. Industry funds and scales what works. One platform, one pipeline, from problem to patent.
+        </p>
+        <div class="hero-cta-group">
+          <button id="btn-hero-submit" class="btn-primary">Submit a challenge</button>
+          <a href="#feed-anchor" class="btn-secondary">Browse open challenges</a>
+        </div>
+      </div>
+
+      <!-- Live metrics grid -->
+      <div class="metrics-card">
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-issues">312</div>
+          <div class="metric-label">Challenges raised</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-teams">84</div>
+          <div class="metric-label">Student teams active</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-funding">₹2.4 Cr</div>
+          <div class="metric-label">Funding pledged</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-patents">17</div>
+          <div class="metric-label">Patents filed</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CHALLENGES SECTION ================= -->
+    <section class="feed-section" id="feed-anchor">
+      <div class="feed-header">
+        <h2>Open challenges near you</h2>
+      </div>
+      <div id="issue-list" class="challenges-grid">
+        <p class="loading-state">Loading challenges…</p>
+      </div>
+    </section>
+
+    <!-- ================= DASHBOARD (Active when logged in) ================= -->
+    <section id="dashboard" class="hidden dashboard-container">
+      <div class="card-box" id="panel-raise-problem">
+        <h3>Raise a new problem</h3>
+        <form id="issue-form" class="stack-form">
+          <div class="form-row">
+            <input type="text" id="issue-title" placeholder="Challenge Title" required>
+            <input type="text" id="issue-district" placeholder="District (e.g. Godda, Ranchi)" required>
+          </div>
+          <div class="form-row">
+            <input type="text" id="issue-sector" placeholder="Sector (e.g. Agriculture)" required>
+            <input type="text" id="issue-theme" placeholder="Theme (optional)">
+          </div>
+          <textarea id="issue-desc" placeholder="Describe the challenge in detail..." rows="3" required></textarea>
+          <button type="submit" class="btn-primary" style="align-self: flex-start;">Submit challenge</button>
+          <p class="msg" id="issue-msg"></p>
+        </form>
+      </div>
+
+      <div class="card-box hidden" id="funding-browse-panel">
+        <h3>Open funding requests</h3>
+        <button id="btn-load-funding" class="btn-secondary" type="button" style="margin-bottom: 1rem;">Refresh funding</button>
+        <div id="funding-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= AUTH MODAL POPUP ================= -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" id="modal-close" class="modal-close">&times;</button>
+
+      <div class="tabs-clean">
+        <button class="tab-clean active" data-tab="login">Log in</button>
+        <button class="tab-clean" data-tab="register">Register</button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="login-form" class="modal-pane">
+        <label class="input-group">
+          <span>Email</span>
+          <input type="email" id="login-email" placeholder="you@example.com" required />
+        </label>
+        <label class="input-group">
+          <span>Password</span>
+          <input type="password" id="login-password" placeholder="••••••••" required />
+        </label>
+        <button type="submit" class="btn-primary btn-block">Continue</button>
+        <p class="msg" id="login-msg"></p>
+      </form>
+
+      <!-- REGISTER -->
+      <form id="register-form" class="modal-pane hidden">
+        <label class="input-group">
+          <span>Full name</span>
+          <input type="text" id="reg-name" placeholder="Full name" required />
+        </label>
+        <label class="input-group">
+          <span>Email</span>
+          <input type="email" id="reg-email" placeholder="you@example.com" required />
+        </label>
+        <label class="input-group">
+          <span>Password</span>
+          <input type="password" id="reg-password" placeholder="Min 8 characters" required minlength="8" />
+        </label>
+
+        <span class="role-caption">Pick your role</span>
+        <div class="role-grid">
+          <label class="role-pill"><input type="radio" name="role-pick" value="citizen" checked><span>Citizen</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="student"><span>Student</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="faculty"><span>Faculty</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="institution"><span>Institution</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="funding_org"><span>Funding / CSR</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="admin"><span>Admin</span></label>
+        </div>
+        <select id="reg-role" class="hidden">
+          <option value="citizen">Citizen</option>
+          <option value="student">Student</option>
+          <option value="faculty">Faculty</option>
+          <option value="institution">Institution</option>
+          <option value="funding_org">Funding organisation</option>
+          <option value="admin">Government admin</option>
+        </select>
+
+        <!-- Dynamic role fields -->
+        <div id="fields-student" class="role-fields hidden">
+          <label class="input-group"><span>College</span><select id="stu-college"><option value="">Choose college…</option></select></label>
+          <label class="input-group"><span>Branch</span><input type="text" id="stu-branch" placeholder="e.g. CSE"></label>
+        </div>
+        <div id="fields-institution" class="role-fields hidden">
+          <label class="input-group"><span>Institution name</span><input type="text" id="inst-name"></label>
+          <label class="input-group"><span>Fields of expertise</span><input type="text" id="inst-fields" placeholder="comma-separated"></label>
+          <label class="input-group"><span>Manpower</span><input type="number" id="inst-manpower"></label>
+        </div>
+        <div id="fields-faculty" class="role-fields hidden">
+          <label class="input-group"><span>Institution</span><select id="fac-institution"><option value="">Choose institution…</option></select></label>
+          <label class="input-group"><span>Department</span><input type="text" id="fac-department"></label>
+          <label class="input-group"><span>Expertise</span><input type="text" id="fac-expertise" placeholder="comma-separated"></label>
+        </div>
+        <div id="fields-funding_org" class="role-fields hidden">
+          <label class="input-group"><span>Organisation name</span><input type="text" id="org-name"></label>
+          <label class="input-group"><span>Focus areas</span><input type="text" id="org-focus" placeholder="comma-separated"></label>
+        </div>
+
+        <button type="submit" class="btn-primary btn-block">Create account</button>
+        <p class="msg" id="register-msg"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
