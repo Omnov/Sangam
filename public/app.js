@@ -6,6 +6,8 @@ let currentProfile = JSON.parse(localStorage.getItem("sangam_profile") || "null"
 
 let facultyDirectory = [];
 let studentDirectory = [];
+let allLoadedIssues = [];
+let isChallengesRevealed = false;
 
 async function api(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
@@ -158,28 +160,70 @@ async function loadIssues() {
   const container = document.getElementById("issue-list");
   try {
     const { issues } = await api("/issues");
-    
-    // Update live metrics
+    allLoadedIssues = issues || [];
+
+    // Always keep hero counter synced with total live issues in database
     const metricCount = document.getElementById("metric-issues");
-    if (metricCount) metricCount.textContent = issues ? issues.length : "0";
+    if (metricCount) metricCount.textContent = allLoadedIssues.length;
 
-    if (!issues || !issues.length) {
-      container.innerHTML = `<p style="grid-column: 1/-1; color: var(--text-muted);">No open challenges available at the moment.</p>`;
-      return;
-    }
-
-    container.innerHTML = issues.map(issueCardHTML).join("");
-    wireIssueCardActions(issues);
+    renderIssueCards();
+    setupBrowseButton();
   } catch (err) {
-    container.innerHTML = `<p style="grid-column: 1/-1; color: #dc2626;">Error: ${err.message}</p>`;
+    if (container) {
+      container.innerHTML = `<p style="grid-column: 1/-1; color: #dc2626;">Error: ${err.message}</p>`;
+    }
   }
+}
+
+function renderIssueCards() {
+  const container = document.getElementById("issue-list");
+  if (!container) return;
+
+  // Initial load: hidden until user explicitly clicks browse
+  if (!isChallengesRevealed) {
+    container.innerHTML = `
+      <p style="grid-column: 1/-1; color: var(--text-muted); font-size: 0.95rem;">
+        Click <strong>Browse open challenges</strong> above to inspect active district problems.
+      </p>`;
+    return;
+  }
+
+  if (!allLoadedIssues.length) {
+    container.innerHTML = `<p style="grid-column: 1/-1; color: var(--text-muted);">No open challenges available at the moment.</p>`;
+    return;
+  }
+
+  container.innerHTML = allLoadedIssues.map(issueCardHTML).join("");
+  wireIssueCardActions(allLoadedIssues);
+}
+
+function setupBrowseButton() {
+  // Target any element with 'Browse open challenges'
+  const browseBtn = Array.from(document.querySelectorAll("button, a")).find((el) =>
+    el.textContent.trim().toLowerCase().includes("browse open challenges")
+  );
+
+  if (!browseBtn || browseBtn.dataset.bound) return;
+  browseBtn.dataset.bound = "true";
+
+  browseBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    isChallengesRevealed = true;
+    renderIssueCards();
+
+    // Scroll down to the open challenges section
+    const target = document.getElementById("issue-list") || document.querySelector(".challenges-section") || document.querySelector("h2, h3");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
 }
 
 function issueCardHTML(issue) {
   return `
     <div class="issue-card" data-id="${issue._id}">
       <div class="issue-meta">
-        <span class="tag">${issue.status.replace("_", " ")}</span>
+        <span class="tag">${escapeHTML(issue.status.replace("_", " "))}</span>
         <span>${escapeHTML(issue.district || "Jharkhand")}</span>
         <span>·</span>
         <span>${escapeHTML(issue.sector || "General")}</span>
@@ -200,7 +244,6 @@ function wireIssueCardActions(issues) {
     const box = document.querySelector(`[data-actions-for="${issue._id}"]`);
     if (!box) return;
 
-    // Normalize IDs to plain strings for reliable comparison
     const submitterId = String(issue.submittedBy?._id || issue.submittedBy || "");
     const engagedInstId = String(issue.engagedInstitution?._id || issue.engagedInstitution || "");
     const currentInstId = String(currentProfile?._id || currentProfile?.id || "");
