@@ -259,8 +259,25 @@ function saveSelectedIssuesForUser(userId, list) {
 }
 
 function wireIssueCardActions(issues) {
-  if (!currentUser) return;
+  // GUEST / LOGGED-OUT USERS: Show "Apply to Solve", clicking opens login modal
+  if (!currentUser) {
+    issues.forEach((issue) => {
+      const box = document.querySelector(`[data-actions-for="${issue._id}"]`);
+      if (!box) return;
 
+      box.innerHTML = `
+        <button class="btn-secondary" style="margin-top: 0.75rem; font-size: 0.82rem; padding: 0.45rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;" data-act="guest-apply">
+          <span>✦</span> Apply to Solve
+        </button>`;
+
+      box.querySelector('[data-act="guest-apply"]').onclick = () => {
+        openAuth("login");
+      };
+    });
+    return;
+  }
+
+  // LOGGED-IN USERS
   const currentUserId = String(currentUser._id || currentUser.id || "");
   const role = currentUser.role;
   let userSelections = getSelectedIssuesForUser(currentUserId);
@@ -278,7 +295,7 @@ function wireIssueCardActions(issues) {
     const isAdmin = role === "admin";
     const isSelectedByUser = userSelections.includes(String(issue._id));
 
-    // 1. Admin Review Button for pending challenges
+    // 1. Admin Review Button for pending submissions
     if (isAdmin && issue.status === "pending_review") {
       box.innerHTML = `<button class="btn-primary-small" data-act="approve">Approve Challenge</button>`;
       box.querySelector('[data-act="approve"]').onclick = async () => {
@@ -292,7 +309,7 @@ function wireIssueCardActions(issues) {
       return;
     }
 
-    // 2. Selected State (Shows green check badge & Cancel button for any logged-in user)
+    // 2. Selected State (Checked badge & Cancel button)
     if (isSelectedByUser) {
       box.innerHTML = `
         <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
@@ -312,7 +329,7 @@ function wireIssueCardActions(issues) {
       return;
     }
 
-    // 3. Unselected State: Available to choose
+    // 3. Unselected State for logged-in accounts
     if (["student", "faculty", "citizen", "institution"].includes(role) && issue.status === "approved") {
       box.innerHTML = `
         <button class="btn-secondary" style="margin-top: 0.75rem; font-size: 0.82rem; padding: 0.45rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;" data-act="select-issue">
@@ -320,12 +337,11 @@ function wireIssueCardActions(issues) {
         </button>`;
 
       box.querySelector('[data-act="select-issue"]').onclick = async () => {
-        // If institution, optionally claim on the backend as well
         if (role === "institution" && !issue.engagedInstitution) {
           try {
             await api(`/issues/${issue._id}/engage`, { method: "PATCH" });
           } catch (e) {
-            // Proceed to save selection locally if offline/demo
+            // continue gracefully
           }
         }
 
@@ -336,7 +352,7 @@ function wireIssueCardActions(issues) {
       return;
     }
 
-    // 4. Mark Solved button for authorized leads/creators
+    // 4. Mark Solved action for creators / engaged institutions / admins
     if (issue.status !== "solved" && issue.status !== "rejected") {
       if (isSubmitter || isEngagedInst || isAdmin) {
         box.innerHTML = `
@@ -418,6 +434,7 @@ if (token && currentUser) {
 } else {
   loadIssues();
 }
+
 /* ================= FOOTER & INFO MODALS ================= */
 const footerInfoContent = {
   about: {
