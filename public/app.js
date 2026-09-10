@@ -198,9 +198,9 @@ function renderIssueCards() {
 }
 
 function setupBrowseButton() {
-  // Target any element with 'Browse open challenges'
   const browseBtn = Array.from(document.querySelectorAll("button, a")).find((el) =>
-    el.textContent.trim().toLowerCase().includes("browse open challenges")
+    el.textContent.trim().toLowerCase().includes("browse open challenges") ||
+    el.textContent.trim().toLowerCase().includes("close challenges")
   );
 
   if (!browseBtn || browseBtn.dataset.bound) return;
@@ -208,13 +208,24 @@ function setupBrowseButton() {
 
   browseBtn.addEventListener("click", (e) => {
     e.preventDefault();
-    isChallengesRevealed = true;
+
+    // Toggle the boolean state
+    isChallengesRevealed = !isChallengesRevealed;
+
+    // Update button text to reflect the action
+    browseBtn.textContent = isChallengesRevealed ? "Close challenges" : "Browse open challenges";
+
+    // Re-render the container
     renderIssueCards();
 
-    // Scroll down to the open challenges section
-    const target = document.getElementById("issue-list") || document.querySelector(".challenges-section") || document.querySelector("h2, h3");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Scroll to the list when opened, or scroll back to top/hero when closed
+    if (isChallengesRevealed) {
+      const target = document.getElementById("issue-list") || document.querySelector(".challenges-section");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   });
 }
