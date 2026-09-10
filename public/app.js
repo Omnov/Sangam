@@ -252,9 +252,9 @@ function wireIssueCardActions(issues) {
     const isEngagedInst = role === "institution" && currentInstId && engagedInstId === currentInstId;
     const isAdmin = role === "admin";
 
-    // 1. Admin Review
+    // 1. Admin Review Button
     if (isAdmin && issue.status === "pending_review") {
-      box.innerHTML = `<button class="btn-primary-small" data-act="approve">Approve</button>`;
+      box.innerHTML = `<button class="btn-primary-small" data-act="approve">Approve Challenge</button>`;
       box.querySelector('[data-act="approve"]').onclick = async () => {
         try {
           await api(`/issues/${issue._id}/approve`, { method: "PATCH" });
@@ -266,7 +266,43 @@ function wireIssueCardActions(issues) {
       return;
     }
 
-    // 2. Complete / Close Challenge Action
+    // 2. Institution Engagement (Official Claim)
+    if (role === "institution" && issue.status === "approved" && !issue.engagedInstitution) {
+      box.innerHTML = `
+        <button class="btn-primary-small" style="margin-top:0.75rem; background:#1b4332; color:#fff;" data-act="claim-issue">
+          Select & Engage Challenge
+        </button>`;
+
+      box.querySelector('[data-act="claim-issue"]').onclick = async () => {
+        if (!confirm(`Commit your institution to solving "${issue.title}"?`)) return;
+        try {
+          await api(`/issues/${issue._id}/engage`, { method: "PATCH" });
+          alert("Challenge successfully engaged! Admin and citizens have been notified.");
+          loadIssues();
+        } catch (err) {
+          alert("Could not engage challenge: " + err.message);
+        }
+      };
+      return;
+    }
+
+    // 3. Any Logged-In User (Student, Faculty, Citizen) Expressing Interest
+    if (["student", "faculty", "citizen"].includes(role) && issue.status === "approved") {
+      box.innerHTML = `
+        <button class="btn-secondary" style="margin-top:0.75rem; font-size:0.82rem; padding:0.4rem 0.8rem; cursor:pointer;" data-act="select-interest">
+          ✦ I want to solve this
+        </button>`;
+
+      box.querySelector('[data-act="select-interest"]').onclick = async () => {
+        alert(
+          `Interest recorded for ${currentUser.name} (${currentUser.role})!\n` +
+          `The participating institutions and admins can now see your team candidacy for: "${issue.title}".`
+        );
+      };
+      return;
+    }
+
+    // 4. Close & Mark Solved (Submitter, Engaged Institution, Admin)
     if (issue.status !== "solved" && issue.status !== "rejected") {
       if (isSubmitter || isEngagedInst || isAdmin) {
         box.innerHTML = `
@@ -275,7 +311,7 @@ function wireIssueCardActions(issues) {
           </button>`;
 
         box.querySelector('[data-act="mark-complete"]').onclick = async () => {
-          if (!confirm("Are you sure you want to close and mark this challenge as completed?")) return;
+          if (!confirm("Are you sure you want to mark this challenge as completed?")) return;
           try {
             await api(`/issues/${issue._id}/complete`, { method: "PATCH" });
             alert("Challenge marked as completed!");
