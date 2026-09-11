@@ -561,3 +561,22 @@ body {
 .info-modal-box p {
   margin-bottom: 0.75rem;
 }
+
+/* ================= GREEN 'स' BRAND EMBLEM ================= */
+.sangam-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: #a8e0cb;       /* Matching sage/mint green */
+  color: #1b4332;                  /* Deep forest green for the letter */
+  border-radius: 50%;
+  font-family: 'Noto Sans Devanagari', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  user-select: none;
+  flex-shrink: 0;
+}
