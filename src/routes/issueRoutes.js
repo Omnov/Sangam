@@ -8,10 +8,13 @@ const {
 
 const router = express.Router();
 
-router.use(requireAuth); // every issue route requires login
+// 1. PUBLIC ROUTE: Anyone (guest or logged-in) can view the open challenges
+router.get("/", listIssues);
+
+// 2. PROTECTED ROUTES: Everything below this requires an active login token
+router.use(requireAuth);
 
 router.post("/", allowRoles("citizen"), createIssue);   // ONLY citizens raise problems
-router.get("/", listIssues);                             // visibility is filtered per-role inside the controller
 router.get("/:id", getIssue);
 router.patch("/:id/approve", allowRoles("admin"), approveIssue);
 router.patch("/:id/reject", allowRoles("admin"), rejectIssue);
