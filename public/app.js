@@ -11,7 +11,9 @@ let isChallengesRevealed = false;
 
 async function api(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token && token !== "null" && token !== "undefined") {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
