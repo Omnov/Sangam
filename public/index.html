@@ -180,9 +180,10 @@
         </label>
 
         <span class="role-caption">Pick your role</span>
+        <!-- Replace this section -->
+
         <div class="role-grid">
           <label class="role-pill"><input type="radio" name="role-pick" value="citizen" checked><span>Citizen</span></label>
-          <label class="role-pill"><input type="radio" name="role-pick" value="student"><span>Student</span></label>
           <label class="role-pill"><input type="radio" name="role-pick" value="faculty"><span>Faculty</span></label>
           <label class="role-pill"><input type="radio" name="role-pick" value="institution"><span>Institution</span></label>
           <label class="role-pill"><input type="radio" name="role-pick" value="funding_org"><span>Funding / CSR</span></label>
@@ -190,18 +191,17 @@
         </div>
         <select id="reg-role" class="hidden">
           <option value="citizen">Citizen</option>
-          <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="institution">Institution</option>
           <option value="funding_org">Funding organisation</option>
           <option value="admin">Government admin</option>
         </select>
 
-        <!-- Dynamic role fields -->
+        <!-- Dynamic role fields 
         <div id="fields-student" class="role-fields hidden">
           <label class="input-group"><span>College</span><select id="stu-college"><option value="">Choose college…</option></select></label>
           <label class="input-group"><span>Branch</span><input type="text" id="stu-branch" placeholder="e.g. CSE"></label>
-        </div>
+        </div>-->
         <div id="fields-institution" class="role-fields hidden">
           <label class="input-group"><span>Institution name</span><input type="text" id="inst-name"></label>
           <label class="input-group"><span>Fields of expertise</span><input type="text" id="inst-fields" placeholder="comma-separated"></label>

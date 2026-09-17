@@ -77,10 +77,11 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
   const role = hiddenRoleSelect.value;
   const profile = {};
 
-  if (role === "student") {
+  /*if (role === "student") {
     profile.college = document.getElementById("stu-college").value;
     profile.branch = document.getElementById("stu-branch").value;
-  } else if (role === "institution") {
+  }*/
+  if (role === "institution") {
     profile.institutionName = document.getElementById("inst-name").value;
     profile.fieldsOfExpertise = document.getElementById("inst-fields").value.split(",").map((s) => s.trim()).filter(Boolean);
     profile.manpower = Number(document.getElementById("inst-manpower").value) || undefined;
@@ -148,11 +149,27 @@ function onLoggedIn(newToken, user, profile) {
 }
 
 function showDashboard() {
-  document.getElementById("auth-actions").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
-  document.getElementById("who-am-i").classList.remove("hidden");
-  document.getElementById("whoami-text").textContent = `${currentUser.name} (${currentUser.role})`;
-  setupVoiceDictation();
+  document.getElementById("auth-actions")?.classList.add("hidden");
+  document.getElementById("dashboard")?.classList.remove("hidden");
+  document.getElementById("who-am-i")?.classList.remove("hidden");
+  
+  const role = currentUser?.role;
+  const whoText = document.getElementById("whoami-text");
+  if (whoText) whoText.textContent = `${currentUser.name} (${role})`;
+
+  const raisePanel = document.getElementById("panel-raise-problem");
+  const heroSubmitBtn = document.getElementById("btn-hero-submit");
+
+  // Only citizens can see and use the problem submission panel
+  if (role === "citizen") {
+    if (raisePanel) raisePanel.classList.remove("hidden");
+    if (heroSubmitBtn) heroSubmitBtn.style.display = "inline-block";
+    setupVoiceDictation();
+  } else {
+    if (raisePanel) raisePanel.classList.add("hidden");
+    if (heroSubmitBtn) heroSubmitBtn.style.display = "none";
+  }
+
   loadIssues();
 }
 
@@ -230,12 +247,59 @@ function setupBrowseButton() {
     }
   });
 }
+
+function getProgressTrackerHTML(status) {
+  const steps = [
+    { key: "pending_review", label: "Submitted" },
+    { key: "approved", label: "Approved" },
+    { key: "in_progress", label: "In Progress" },
+    { key: "solved", label: "Solved" }
+  ];
+
+  let activeIndex = 0;
+  if (status === "approved") activeIndex = 1;
+  else if (status === "in_progress" || status === "engaged") activeIndex = 2;
+  else if (status === "solved") activeIndex = 3;
+  else if (status === "rejected") {
+    return `
+      <div style="margin: 0.75rem 0; padding: 0.4rem 0.6rem; background: #fee2e2; color: #991b1b; border-radius: 6px; font-size: 0.78rem; font-weight: 600;">
+        ✕ Challenge Rejected / Closed by Admin
+      </div>`;
+  }
+
+  return `
+    <div style="margin: 0.85rem 0 0.4rem; padding: 0.6rem 0.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; font-weight: 600; margin-bottom: 0.4rem;">
+        Application Lifecycle
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; position: relative;">
+        ${steps.map((step, idx) => {
+          const isDone = idx <= activeIndex;
+          const isCurrent = idx === activeIndex;
+          const color = isDone ? "#166534" : "#94a3b8";
+          const bg = isDone ? "#dcfce7" : "#f1f5f9";
+          const border = isDone ? "#86efac" : "#cbd5e1";
+
+          return `
+            <div style="display: flex; flex-direction: column; align-items: center; flex: 1; text-align: center; position: relative; z-index: 1;">
+              <span style="width: 18px; height: 18px; border-radius: 50%; background: ${bg}; border: 2px solid ${border}; color:${color}; font-size: 0.65rem; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                ${isDone ? "✓" : idx + 1}
+              </span>
+              <span style="font-size: 0.7rem; color: ${isCurrent ? "#0f172a" : "#64748b"}; font-weight: ${isCurrent ? "700" : "500"}; margin-top: 0.2rem;">
+                ${step.label}
+              </span>
+            </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+}
+
 function issueCardHTML(issue) {
   const speechText = escapeHTML(`${issue.title}. ${issue.description}`);
   return `
     <div class="issue-card" data-id="${issue._id}">
       <div class="issue-meta">
-        <span class="tag">${escapeHTML(issue.status.replace("_", " "))}</span>
+        <span class="tag">${escapeHTML((issue.status || "pending_review").replace("_", " "))}</span>
         <span>${escapeHTML(issue.district || "Jharkhand")}</span>
         <span>·</span>
         <span>${escapeHTML(issue.sector || "General")}</span>
@@ -247,6 +311,10 @@ function issueCardHTML(issue) {
         </button>
       </div>
       <p style="margin-top: 0.5rem;">${escapeHTML(issue.description)}</p>
+      
+      <!-- Progress tracker shown for all logged-in users -->
+      ${currentUser ? getProgressTrackerHTML(issue.status) : ""}
+
       <div class="issue-actions" data-actions-for="${issue._id}"></div>
     </div>`;
 }
@@ -303,13 +371,32 @@ function wireIssueCardActions(issues) {
 
     // 1. Admin Review Button for pending submissions
     if (isAdmin && issue.status === "pending_review") {
-      box.innerHTML = `<button class="btn-primary-small" data-act="approve">Approve Challenge</button>`;
+      box.innerHTML = `
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+          <button class="btn-primary-small" data-act="approve" style="background: #166534; color: #ffffff; border: none; border-radius: 6px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.8rem;">
+            ✓ Approve
+          </button>
+          <button class="btn-secondary" data-act="reject" style="color: #b91c1c; border-color: #fca5a5; border-radius: 6px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.8rem;">
+            ✕ Reject
+          </button>
+        </div>`;
+
       box.querySelector('[data-act="approve"]').onclick = async () => {
         try {
           await api(`/issues/${issue._id}/approve`, { method: "PATCH" });
           loadIssues();
         } catch (err) {
           alert("Approval failed: " + err.message);
+        }
+      };
+
+      box.querySelector('[data-act="reject"]').onclick = async () => {
+        if (!confirm("Are you sure you want to reject this challenge?")) return;
+        try {
+          await api(`/issues/${issue._id}/reject`, { method: "PATCH" });
+          loadIssues();
+        } catch (err) {
+          alert("Rejection failed: " + err.message);
         }
       };
       return;
@@ -421,7 +508,11 @@ btnShowRegister?.addEventListener("click", () => openAuth("register"));
 
 btnHeroSubmit?.addEventListener("click", () => {
   if (currentUser) {
-    document.getElementById("dashboard").scrollIntoView({ behavior: "smooth" });
+    if (currentUser.role === "citizen") {
+      document.getElementById("dashboard")?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      alert(`Only citizens can submit challenges. You are currently logged in as ${currentUser.role}.`);
+    }
   } else {
     openAuth("login");
   }
