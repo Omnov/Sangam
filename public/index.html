@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sangam — API test frontend</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <strong>Sangam</strong>
+  <span id="api-status" class="status">checking API…</span>
+  <div id="who-am-i" class="who hidden">
+    <span id="whoami-text"></span>
+    <button id="btn-logout">Log out</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===================== AUTH ===================== -->
+  <section id="auth-section" class="panel">
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Log in</button>
+      <button class="tab" data-tab="register">Register</button>
+    </div>
+
+    <form id="login-form" class="pane">
+      <label>Email <input type="email" id="login-email" required></label>
+      <label>Password <input type="password" id="login-password" required></label>
+      <button type="submit">Log in</button>
+      <p class="msg" id="login-msg"></p>
+    </form>
+
+    <form id="register-form" class="pane hidden">
+      <label>Full name <input type="text" id="reg-name" required></label>
+      <label>Email <input type="email" id="reg-email" required></label>
+      <label>Password <input type="password" id="reg-password" required minlength="8"></label>
+      <label>Role
+        <select id="reg-role">
+          <option value="citizen">Citizen</option>
+          <option value="student">Student</option>
+          <option value="faculty">Faculty</option>
+          <option value="institution">Institution</option>
+          <option value="funding_org">Funding organisation</option>
+          <option value="admin">Government admin</option>
+        </select>
+      </label>
+
+      <!-- role-specific fields, shown/hidden by app.js -->
+      <div id="fields-student" class="role-fields hidden">
+        <label>College <select id="stu-college"><option value="">Loading colleges…</option></select></label>
+        <label>Branch <input type="text" id="stu-branch"></label>
+      </div>
+      <div id="fields-institution" class="role-fields hidden">
+        <label>Institution name <input type="text" id="inst-name"></label>
+        <label>Fields of expertise (comma-separated) <input type="text" id="inst-fields"></label>
+        <label>Manpower (headcount) <input type="number" id="inst-manpower"></label>
+      </div>
+      <div id="fields-faculty" class="role-fields hidden">
+        <label>Institution <select id="fac-institution"><option value="">Loading institutions…</option></select></label>
+        <label>Department <input type="text" id="fac-department"></label>
+        <label>Expertise (comma-separated) <input type="text" id="fac-expertise"></label>
+      </div>
+      <div id="fields-funding_org" class="role-fields hidden">
+        <label>Organisation name <input type="text" id="org-name"></label>
+        <label>Focus areas (comma-separated) <input type="text" id="org-focus"></label>
+      </div>
+
+      <button type="submit">Create account</button>
+      <p class="msg" id="register-msg"></p>
+    </form>
+  </section>
+
+  <!-- ===================== DASHBOARD (shown once logged in) ===================== -->
+  <section id="dashboard" class="hidden">
+
+    <div class="panel">
+      <h3>Raise a new problem</h3>
+      <form id="issue-form" class="inline-form">
+        <input type="text" id="issue-title" placeholder="Title" required>
+        <input type="text" id="issue-district" placeholder="District" required>
+        <input type="text" id="issue-sector" placeholder="Sector" required>
+        <input type="text" id="issue-theme" placeholder="Theme (optional)">
+        <textarea id="issue-desc" placeholder="Description" required></textarea>
+        <button type="submit">Submit challenge</button>
+        <p class="msg" id="issue-msg"></p>
+      </form>
+    </div>
+
+    <div class="panel" id="funding-browse-panel">
+      <h3>Open funding requests</h3>
+      <button id="btn-load-funding" type="button">Refresh</button>
+      <div id="funding-list"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Challenges</h3>
+        <button id="btn-refresh-issues" type="button">Refresh</button>
+      </div>
+      <div id="issue-list"></div>
+    </div>
+
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
