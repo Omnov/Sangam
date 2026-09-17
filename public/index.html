@@ -1,44 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sangam — API test frontend</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sangam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='48' fill='%23a8e0cb'/><text x='50%25' y='54%25' dominant-baseline='central' text-anchor='middle' font-family='sans-serif' font-size='54' font-weight='700' fill='%231b4332'>स</text></svg>">
 </head>
 <body>
 
-<header class="topbar">
-  <strong>Sangam</strong>
-  <span id="api-status" class="status">checking API…</span>
-  <div id="who-am-i" class="who hidden">
-    <span id="whoami-text"></span>
-    <button id="btn-logout">Log out</button>
-  </div>
-</header>
-
-<main class="wrap">
-
-  <!-- ===================== AUTH ===================== -->
-  <section id="auth-section" class="panel">
-    <div class="tabs">
-      <button class="tab active" data-tab="login">Log in</button>
-      <button class="tab" data-tab="register">Register</button>
+  <!-- ================= TOPBAR ================= -->
+  <header class="topbar">
+    <div class="brand" style="display: flex; align-items: center; gap: 10px;">
+      <svg width="36" height="36" viewBox="0 0 100 100" style="flex-shrink: 0; display: block;">
+        <circle cx="50" cy="50" r="48" fill="#a8e0cb" />
+        <text x="50%" y="54%" dominant-baseline="central" text-anchor="middle" font-family="system-ui, sans-serif" font-size="54" font-weight="700" fill="#1b4332">स</text>
+      </svg>
+      <span class="brand-name">Sangam</span>
     </div>
 
-    <form id="login-form" class="pane">
-      <label>Email <input type="email" id="login-email" required></label>
-      <label>Password <input type="password" id="login-password" required></label>
-      <button type="submit">Log in</button>
-      <p class="msg" id="login-msg"></p>
-    </form>
+    <div class="topbar-actions">
+      <div id="auth-actions" class="auth-buttons">
+        <button id="btn-show-login" class="nav-btn-link">Log in</button>
+        <button id="btn-show-register" class="btn-primary-small">Register</button>
+      </div>
 
-    <form id="register-form" class="pane hidden">
-      <label>Full name <input type="text" id="reg-name" required></label>
-      <label>Email <input type="email" id="reg-email" required></label>
-      <label>Password <input type="password" id="reg-password" required minlength="8"></label>
-      <label>Role
-        <select id="reg-role">
+      <div id="who-am-i" class="who hidden">
+        <span id="whoami-text"></span>
+        <button id="btn-logout" class="nav-btn-link">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ================= HERO SECTION ================= -->
+    <section class="hero-grid">
+      <div class="hero-left">
+        <h1 class="hero-heading">
+          Jharkhand's<br>
+          problems, solved<br>
+          by the people who<br>
+          live them.
+        </h1>
+        <p class="hero-subtext">
+          Citizens raise real district-level challenges. Students and faculty build solutions. Industry funds and scales what works. One platform, one pipeline, from problem to patent.
+        </p>
+        <div class="hero-cta-group">
+          <button id="btn-hero-submit" class="btn-primary">Submit a challenge</button>
+          <button id="btn-browse-challenges" class="btn-secondary" type="button">Browse open challenges</button>
+        </div>
+      </div>
+
+      <!-- Live metrics grid -->
+      <div class="metrics-card">
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-issues">50</div>
+          <div class="metric-label">Challenges raised</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-teams">84</div>
+          <div class="metric-label">Student teams active</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-funding">₹2.4 Cr</div>
+          <div class="metric-label">Funding pledged</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-number" id="metric-patents">17</div>
+          <div class="metric-label">Patents filed</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CHALLENGES SECTION ================= -->
+    <section class="feed-section" id="feed-anchor">
+      <div class="feed-header">
+        <h2>Open challenges near you</h2>
+      </div>
+      <div id="issue-list" class="challenges-grid">
+        <p class="loading-state">Loading challenges…</p>
+      </div>
+    </section>
+
+    <!-- ================= DASHBOARD (Active when logged in) ================= -->
+    <section id="dashboard" class="hidden dashboard-container">
+      <div class="card-box" id="panel-raise-problem">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="margin: 0;">Raise a new problem</h3>
+          <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: #64748b;">
+            <span>Voice:</span>
+            <select id="voice-lang-select" style="padding: 0.25rem 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.78rem; background: #fff; max-width: 170px;">
+              <option value="en-IN" selected>English (India)</option>
+              <option value="hi-IN">हिन्दी (Hindi)</option>
+              <option value="bn-IN">বাংলা (Bengali)</option>
+              <option value="bho-IN">भोजपुरी (Bhojpuri)</option>
+              <option value="mai-IN">मैथिली (Maithili)</option>
+              <option value="or-IN">ଓଡ଼ିଆ (Odia)</option>
+              <option value="ur-IN">اردو (Urdu)</option>
+              <option value="mr-IN">मराठी (Marathi)</option>
+              <option value="ta-IN">தமிழ் (Tamil)</option>
+              <option value="te-IN">తెలుగు (Telugu)</option>
+            </select>
+          </div>
+        </div>
+
+        <form id="issue-form" class="stack-form">
+          <div class="form-row">
+            <div class="form-row">
+              <input type="text" id="issue-title" placeholder="Challenge Title" required>
+              <input type="text" id="issue-district" placeholder="District (e.g. Godda, Ranchi)" required>
+            </div>
+            <input type="text" id="issue-district" placeholder="District (e.g. Godda, Ranchi)" required>
+          </div>
+          <div class="form-row">
+            <input type="text" id="issue-sector" placeholder="Sector (e.g. Agriculture)" required>
+            <input type="text" id="issue-theme" placeholder="Theme (optional)">
+          </div>
+
+          <!-- Description with Voice Mic Button -->
+          <div style="position: relative;">
+            <textarea id="issue-desc" placeholder="Describe the challenge in detail..." rows="3" required style="width: 100%; box-sizing: border-box; padding-right: 3rem;"></textarea>
+            <button type="button" class="btn-voice-dictate" data-target="issue-desc" title="Speak Description" style="position: absolute; right: 8px; top: 8px; padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; cursor: pointer; font-size: 0.85rem;">🎤</button>
+          </div>
+
+          <button type="submit" class="btn-primary" style="align-self: flex-start;">Submit challenge</button>
+          <p class="msg" id="issue-msg"></p>
+        </form>
+      </div>
+
+      <div class="card-box hidden" id="funding-browse-panel">
+        <h3>Open funding requests</h3>
+        <button id="btn-load-funding" class="btn-secondary" type="button" style="margin-bottom: 1rem;">Refresh funding</button>
+        <div id="funding-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= AUTH MODAL POPUP ================= -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-card">
+      <button type="button" id="modal-close" class="modal-close">&times;</button>
+
+      <div class="tabs-clean">
+        <button class="tab-clean active" data-tab="login">Log in</button>
+        <button class="tab-clean" data-tab="register">Register</button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="login-form" class="modal-pane">
+        <label class="input-group">
+          <span>Email</span>
+          <input type="email" id="login-email" placeholder="you@example.com" required />
+        </label>
+        <label class="input-group">
+          <span>Password</span>
+          <input type="password" id="login-password" placeholder="••••••••" required />
+        </label>
+        <button type="submit" class="btn-primary btn-block">Continue</button>
+        <p class="msg" id="login-msg"></p>
+      </form>
+
+      <!-- REGISTER -->
+      <form id="register-form" class="modal-pane hidden">
+        <label class="input-group">
+          <span>Full name</span>
+          <input type="text" id="reg-name" placeholder="Full name" required />
+        </label>
+        <label class="input-group">
+          <span>Email</span>
+          <input type="email" id="reg-email" placeholder="you@example.com" required />
+        </label>
+        <label class="input-group">
+          <span>Password</span>
+          <input type="password" id="reg-password" placeholder="Min 8 characters" required minlength="8" />
+        </label>
+
+        <span class="role-caption">Pick your role</span>
+        <div class="role-grid">
+          <label class="role-pill"><input type="radio" name="role-pick" value="citizen" checked><span>Citizen</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="student"><span>Student</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="faculty"><span>Faculty</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="institution"><span>Institution</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="funding_org"><span>Funding / CSR</span></label>
+          <label class="role-pill"><input type="radio" name="role-pick" value="admin"><span>Admin</span></label>
+        </div>
+        <select id="reg-role" class="hidden">
           <option value="citizen">Citizen</option>
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
@@ -46,67 +196,94 @@
           <option value="funding_org">Funding organisation</option>
           <option value="admin">Government admin</option>
         </select>
-      </label>
 
-      <!-- role-specific fields, shown/hidden by app.js -->
-      <div id="fields-student" class="role-fields hidden">
-        <label>College <select id="stu-college"><option value="">Loading colleges…</option></select></label>
-        <label>Branch <input type="text" id="stu-branch"></label>
-      </div>
-      <div id="fields-institution" class="role-fields hidden">
-        <label>Institution name <input type="text" id="inst-name"></label>
-        <label>Fields of expertise (comma-separated) <input type="text" id="inst-fields"></label>
-        <label>Manpower (headcount) <input type="number" id="inst-manpower"></label>
-      </div>
-      <div id="fields-faculty" class="role-fields hidden">
-        <label>Institution <select id="fac-institution"><option value="">Loading institutions…</option></select></label>
-        <label>Department <input type="text" id="fac-department"></label>
-        <label>Expertise (comma-separated) <input type="text" id="fac-expertise"></label>
-      </div>
-      <div id="fields-funding_org" class="role-fields hidden">
-        <label>Organisation name <input type="text" id="org-name"></label>
-        <label>Focus areas (comma-separated) <input type="text" id="org-focus"></label>
-      </div>
+        <!-- Dynamic role fields -->
+        <div id="fields-student" class="role-fields hidden">
+          <label class="input-group"><span>College</span><select id="stu-college"><option value="">Choose college…</option></select></label>
+          <label class="input-group"><span>Branch</span><input type="text" id="stu-branch" placeholder="e.g. CSE"></label>
+        </div>
+        <div id="fields-institution" class="role-fields hidden">
+          <label class="input-group"><span>Institution name</span><input type="text" id="inst-name"></label>
+          <label class="input-group"><span>Fields of expertise</span><input type="text" id="inst-fields" placeholder="comma-separated"></label>
+          <label class="input-group"><span>Manpower</span><input type="number" id="inst-manpower"></label>
+        </div>
+        <div id="fields-faculty" class="role-fields hidden">
+          <label class="input-group"><span>Institution</span><select id="fac-institution"><option value="">Choose institution…</option></select></label>
+          <label class="input-group"><span>Department</span><input type="text" id="fac-department"></label>
+          <label class="input-group"><span>Expertise</span><input type="text" id="fac-expertise" placeholder="comma-separated"></label>
+        </div>
+        <div id="fields-funding_org" class="role-fields hidden">
+          <label class="input-group"><span>Organisation name</span><input type="text" id="org-name"></label>
+          <label class="input-group"><span>Focus areas</span><input type="text" id="org-focus" placeholder="comma-separated"></label>
+        </div>
 
-      <button type="submit">Create account</button>
-      <p class="msg" id="register-msg"></p>
-    </form>
-  </section>
-
-  <!-- ===================== DASHBOARD (shown once logged in) ===================== -->
-  <section id="dashboard" class="hidden">
-
-    <div class="panel">
-      <h3>Raise a new problem</h3>
-      <form id="issue-form" class="inline-form">
-        <input type="text" id="issue-title" placeholder="Title" required>
-        <input type="text" id="issue-district" placeholder="District" required>
-        <input type="text" id="issue-sector" placeholder="Sector" required>
-        <input type="text" id="issue-theme" placeholder="Theme (optional)">
-        <textarea id="issue-desc" placeholder="Description" required></textarea>
-        <button type="submit">Submit challenge</button>
-        <p class="msg" id="issue-msg"></p>
+        <button type="submit" class="btn-primary btn-block">Create account</button>
+        <p class="msg" id="register-msg"></p>
       </form>
     </div>
+  </div>
 
-    <div class="panel" id="funding-browse-panel">
-      <h3>Open funding requests</h3>
-      <button id="btn-load-funding" type="button">Refresh</button>
-      <div id="funding-list"></div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head">
-        <h3>Challenges</h3>
-        <button id="btn-refresh-issues" type="button">Refresh</button>
+  <!-- ================= SITE FOOTER ================= -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-col brand-col">
+        <div class="footer-brand" style="display: flex; align-items: center; gap: 10px;">
+          <svg width="32" height="32" viewBox="0 0 100 100" style="flex-shrink: 0; display: block;">
+            <circle cx="50" cy="50" r="48" fill="#a8e0cb" />
+            <text x="50%" y="54%" dominant-baseline="central" text-anchor="middle" font-family="system-ui, sans-serif" font-size="54" font-weight="700" fill="#1b4332">स</text>
+          </svg>
+          <span class="footer-title">Sangam</span>
+        </div>
+        <p class="footer-tagline">
+          Bridging grassroots community challenges with academic research and institutional innovation across Jharkhand.
+        </p>
       </div>
-      <div id="issue-list"></div>
+
+      <div class="footer-col">
+        <h5>Platform</h5>
+        <ul>
+          <li><a href="#" data-footer-modal="about">About Sangam</a></li>
+          <li><a href="#" data-footer-modal="how-it-works">How It Works</a></li>
+          <li><a href="#" data-footer-modal="guidelines">Submission Guidelines</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>Governance</h5>
+        <ul>
+          <li><a href="#" data-footer-modal="privacy">Privacy Policy</a></li>
+          <li><a href="#" data-footer-modal="terms">Terms of Service</a></li>
+          <li><a href="#" data-footer-modal="open-data">Open Data Charter</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>Connect</h5>
+        <ul>
+          <li><a href="#" data-footer-modal="contact">Support & Helpdesk</a></li>
+          <li><a href="#" data-footer-modal="nodal">District Nodal Officers</a></li>
+          <li><a href="#" data-footer-modal="faq">Frequently Asked Questions</a></li>
+        </ul>
+      </div>
     </div>
 
-  </section>
+    <div class="footer-bottom">
+      <p>&copy; <span id="footer-year">2026</span> Sangam Platform &middot; Government of Jharkhand Initiative &middot; All rights reserved.</p>
+    </div>
+  </footer>
 
-</main>
-
-<script src="app.js"></script>
+  <!-- Generic Footer Info Modal -->
+  <div id="info-modal" class="modal hidden">
+    <div class="modal-backdrop" id="info-modal-backdrop"></div>
+    <div class="modal-box info-modal-box">
+      <div class="modal-header">
+        <h3 id="info-modal-title">Information</h3>
+        <button class="btn-close" id="info-modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="info-modal-body"></div>
+    </div>
+  </div>
+  
+  <script src="/app.js"></script>
 </body>
 </html>

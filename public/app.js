@@ -1,20 +1,14 @@
-/* ==========================================================================
-   Sangam — plain JS frontend wired to the real backend API.
-   No frameworks, no build step. Open index.html via a local static server
-   (see README) with the backend running on http://localhost:5000.
-========================================================================== */
+const API_BASE = "/api";
 
-const API_BASE = "/api"; // same origin as this page - the backend serves this file too
-
-// ---------- tiny state, kept in localStorage so a refresh stays logged in ----------
 let token = localStorage.getItem("sangam_token") || null;
 let currentUser = JSON.parse(localStorage.getItem("sangam_user") || "null");
-let currentProfile = JSON.parse(localStorage.getItem("sangam_profile") || "null"); // role-specific profile doc, e.g. an institution's own InstitutionProfile
+let currentProfile = JSON.parse(localStorage.getItem("sangam_profile") || "null");
 
-let facultyDirectory = [];   // cached list, used to populate "assign faculty" dropdowns
-let studentDirectory = [];   // cached list, used to populate "add student" checkboxes
+let facultyDirectory = [];
+let studentDirectory = [];
+let allLoadedIssues = [];
+let isChallengesRevealed = false;
 
-// ---------- fetch helper: attaches the JWT, throws with the server's message on error ----------
 async function api(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -32,71 +26,60 @@ async function api(path, { method = "GET", body } = {}) {
 
 function setMsg(id, text, ok = false) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.textContent = text;
   el.className = "msg " + (text ? (ok ? "ok" : "error") : "");
 }
 
-// ---------- API health check, shown in the top bar ----------
-(async function checkHealth() {
-  try {
-    await fetch(`${API_BASE}/health`).then((r) => r.json());
-    document.getElementById("api-status").textContent = "API connected";
-  } catch {
-    document.getElementById("api-status").textContent = "API unreachable — is the backend running?";
-  }
-})();
-
-/* ---------- AUTH: tab switching ---------- */
-document.querySelectorAll(".tab").forEach((btn) => {
+/* ================= TAB CONTROLLERS ================= */
+document.querySelectorAll(".tab-clean").forEach((btn) => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
-    document.getElementById("login-form").classList.toggle("hidden", btn.dataset.tab !== "login");
-    document.getElementById("register-form").classList.toggle("hidden", btn.dataset.tab !== "register");
+    document.querySelectorAll(".tab-clean").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    const isLogin = btn.dataset.tab === "login";
+    document.getElementById("login-form").classList.toggle("hidden", !isLogin);
+    document.getElementById("register-form").classList.toggle("hidden", isLogin);
   });
 });
 
-/* ---------- AUTH: show the right extra fields for the selected role ---------- */
-const roleSelect = document.getElementById("reg-role");
-function updateRoleFields() {
+/* ================= ROLE SELECTOR ================= */
+const roleRadios = document.querySelectorAll('input[name="role-pick"]');
+const hiddenRoleSelect = document.getElementById("reg-role");
+
+function syncRole(roleValue) {
+  hiddenRoleSelect.value = roleValue;
   document.querySelectorAll(".role-fields").forEach((div) => div.classList.add("hidden"));
-  const target = document.getElementById(`fields-${roleSelect.value}`);
+  const target = document.getElementById(`fields-${roleValue}`);
   if (target) target.classList.remove("hidden");
 }
-roleSelect.addEventListener("change", updateRoleFields);
-updateRoleFields();
 
-// Institutions list is public (no login needed) specifically so a faculty
-// applicant can pick their institution before they have an account.
-// Institutions list is public (no login needed) specifically so a faculty
-// or student applicant can pick their institution/college before they have
-// an account. Same list feeds both dropdowns - a college IS an institution.
-(async function loadInstitutionsForRegister() {
-  const facultySelect = document.getElementById("fac-institution");
-  const studentSelect = document.getElementById("stu-college");
+roleRadios.forEach((r) => {
+  r.addEventListener("change", (e) => syncRole(e.target.value));
+});
+
+(async function loadInstitutions() {
+  const facSel = document.getElementById("fac-institution");
+  const stuSel = document.getElementById("stu-college");
+  if (!facSel || !stuSel) return;
   try {
     const { institutions } = await api("/institutions");
-    const options = institutions.map((i) => `<option value="${i.id}">${escapeHTML(i.name)}</option>`).join("");
-    facultySelect.innerHTML = `<option value="">Choose your institution…</option>${options}`;
-    studentSelect.innerHTML = `<option value="">Choose your college…</option>${options}`;
-    if (!institutions.length) {
-      facultySelect.innerHTML = `<option value="">No institutions registered yet</option>`;
-      studentSelect.innerHTML = `<option value="">No colleges registered yet</option>`;
-    }
-  } catch {
-    facultySelect.innerHTML = `<option value="">Could not load institutions</option>`;
-    studentSelect.innerHTML = `<option value="">Could not load colleges</option>`;
+    const options = institutions.map((i) => `<option value="${i.id}">${i.name}</option>`).join("");
+    facSel.innerHTML = `<option value="">Choose institution…</option>${options}`;
+    stuSel.innerHTML = `<option value="">Choose college…</option>${options}`;
+  } catch (e) {
+    // Fail silently on public browse
   }
 })();
 
-/* ---------- AUTH: register ---------- */
+/* ================= AUTH ACTIONS ================= */
 document.getElementById("register-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const role = roleSelect.value;
+  const role = hiddenRoleSelect.value;
   const profile = {};
+
   if (role === "student") {
     profile.college = document.getElementById("stu-college").value;
     profile.branch = document.getElementById("stu-branch").value;
-    if (!profile.college) return setMsg("register-msg", "Choose your college first.");
   } else if (role === "institution") {
     profile.institutionName = document.getElementById("inst-name").value;
     profile.fieldsOfExpertise = document.getElementById("inst-fields").value.split(",").map((s) => s.trim()).filter(Boolean);
@@ -105,7 +88,6 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
     profile.institution = document.getElementById("fac-institution").value;
     profile.department = document.getElementById("fac-department").value;
     profile.expertise = document.getElementById("fac-expertise").value.split(",").map((s) => s.trim()).filter(Boolean);
-    if (!profile.institution) return setMsg("register-msg", "Choose your institution first.");
   } else if (role === "funding_org") {
     profile.orgName = document.getElementById("org-name").value;
     profile.focusAreas = document.getElementById("org-focus").value.split(",").map((s) => s.trim()).filter(Boolean);
@@ -129,7 +111,6 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
   }
 });
 
-/* ---------- AUTH: login ---------- */
 document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
@@ -152,8 +133,9 @@ document.getElementById("btn-logout").addEventListener("click", () => {
   localStorage.removeItem("sangam_user");
   localStorage.removeItem("sangam_profile");
   document.getElementById("dashboard").classList.add("hidden");
-  document.getElementById("auth-section").classList.remove("hidden");
   document.getElementById("who-am-i").classList.add("hidden");
+  document.getElementById("auth-actions").classList.remove("hidden");
+  loadIssues();
 });
 
 function onLoggedIn(newToken, user, profile) {
@@ -161,39 +143,246 @@ function onLoggedIn(newToken, user, profile) {
   localStorage.setItem("sangam_token", token);
   localStorage.setItem("sangam_user", JSON.stringify(user));
   localStorage.setItem("sangam_profile", JSON.stringify(currentProfile));
+  authModal.classList.add("hidden");
   showDashboard();
 }
 
 function showDashboard() {
-  document.getElementById("auth-section").classList.add("hidden");
+  document.getElementById("auth-actions").classList.add("hidden");
   document.getElementById("dashboard").classList.remove("hidden");
   document.getElementById("who-am-i").classList.remove("hidden");
-  document.getElementById("whoami-text").textContent = `${currentUser.name} · ${currentUser.role}`;
-  loadDirectories();
+  document.getElementById("whoami-text").textContent = `${currentUser.name} (${currentUser.role})`;
+  setupVoiceDictation();
   loadIssues();
-  loadFunding();
 }
 
-/* ---------- directories (for dropdowns / checkboxes) ---------- */
-async function loadDirectories() {
+/* ================= CHALLENGES & METRICS ================= */
+async function loadIssues() {
+  const container = document.getElementById("issue-list");
   try {
-    if (currentUser.role === "institution" && currentProfile?._id) {
-      // only OUR OWN faculty - the backend also enforces this on assign, but
-      // there's no reason to even show other institutions' faculty here
-      facultyDirectory = (await api(`/faculty?institution=${currentProfile._id}`)).faculty;
-    }
-    if (currentUser.role === "faculty" && currentProfile?.institution?._id) {
-      // only students who belong to OUR OWN institution - the backend also
-      // enforces this on team creation, but no reason to show others here
-      studentDirectory = (await api(`/students?college=${currentProfile.institution._id}`)).students;
-    }
+    const { issues } = await api("/issues");
+    allLoadedIssues = issues || [];
+
+    // Always keep hero counter synced with total live issues in database
+    const metricCount = document.getElementById("metric-issues");
+    if (metricCount) metricCount.textContent = allLoadedIssues.length;
+
+    renderIssueCards();
+    setupBrowseButton();
   } catch (err) {
-    console.error("Could not load directories:", err.message);
+    if (container) {
+      container.innerHTML = `<p style="grid-column: 1/-1; color: #dc2626;">Error: ${err.message}</p>`;
+    }
   }
 }
 
-/* ---------- raise a new challenge ---------- */
-document.getElementById("issue-form").addEventListener("submit", async (e) => {
+function renderIssueCards() {
+  const container = document.getElementById("issue-list");
+  if (!container) return;
+
+  // Initial load: hidden until user explicitly clicks browse
+  if (!isChallengesRevealed) {
+    container.innerHTML = `
+      <p style="grid-column: 1/-1; color: var(--text-muted); font-size: 0.95rem;">
+        Click <strong>Browse open challenges</strong> above to inspect active district problems.
+      </p>`;
+    return;
+  }
+
+  if (!allLoadedIssues.length) {
+    container.innerHTML = `<p style="grid-column: 1/-1; color: var(--text-muted);">No open challenges available at the moment.</p>`;
+    return;
+  }
+
+  container.innerHTML = allLoadedIssues.map(issueCardHTML).join("");
+  wireIssueCardActions(allLoadedIssues);
+}
+
+function setupBrowseButton() {
+  const browseBtn = Array.from(document.querySelectorAll("button, a")).find((el) =>
+    el.textContent.trim().toLowerCase().includes("browse open challenges") ||
+    el.textContent.trim().toLowerCase().includes("close challenges")
+  );
+
+  if (!browseBtn || browseBtn.dataset.bound) return;
+  browseBtn.dataset.bound = "true";
+
+  browseBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+
+    // Toggle the boolean state
+    isChallengesRevealed = !isChallengesRevealed;
+
+    // Update button text to reflect the action
+    browseBtn.textContent = isChallengesRevealed ? "Close challenges" : "Browse open challenges";
+
+    // Re-render the container
+    renderIssueCards();
+
+    // Scroll to the list when opened, or scroll back to top/hero when closed
+    if (isChallengesRevealed) {
+      const target = document.getElementById("issue-list") || document.querySelector(".challenges-section");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+}
+function issueCardHTML(issue) {
+  const speechText = escapeHTML(`${issue.title}. ${issue.description}`);
+  return `
+    <div class="issue-card" data-id="${issue._id}">
+      <div class="issue-meta">
+        <span class="tag">${escapeHTML(issue.status.replace("_", " "))}</span>
+        <span>${escapeHTML(issue.district || "Jharkhand")}</span>
+        <span>·</span>
+        <span>${escapeHTML(issue.sector || "General")}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-top: 0.5rem;">
+        <h4 style="margin: 0;">${escapeHTML(issue.title)}</h4>
+        <button type="button" class="btn-listen" onclick="speakText('${speechText}', this)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer; flex-shrink: 0;">
+          🔊 Listen
+        </button>
+      </div>
+      <p style="margin-top: 0.5rem;">${escapeHTML(issue.description)}</p>
+      <div class="issue-actions" data-actions-for="${issue._id}"></div>
+    </div>`;
+}
+
+function getSelectedIssuesForUser(userId) {
+  try {
+    const raw = localStorage.getItem(`sangam_selected_issues_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSelectedIssuesForUser(userId, list) {
+  localStorage.setItem(`sangam_selected_issues_${userId}`, JSON.stringify(list));
+}
+
+function wireIssueCardActions(issues) {
+  // GUEST / LOGGED-OUT USERS: Show "Apply to Solve", clicking opens login modal
+  if (!currentUser) {
+    issues.forEach((issue) => {
+      const box = document.querySelector(`[data-actions-for="${issue._id}"]`);
+      if (!box) return;
+
+      box.innerHTML = `
+        <button class="btn-secondary" style="margin-top: 0.75rem; font-size: 0.82rem; padding: 0.45rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;" data-act="guest-apply">
+          <span>✦</span> Apply to Solve
+        </button>`;
+
+      box.querySelector('[data-act="guest-apply"]').onclick = () => {
+        openAuth("login");
+      };
+    });
+    return;
+  }
+
+  // LOGGED-IN USERS
+  const currentUserId = String(currentUser._id || currentUser.id || "");
+  const role = currentUser.role;
+  let userSelections = getSelectedIssuesForUser(currentUserId);
+
+  issues.forEach((issue) => {
+    const box = document.querySelector(`[data-actions-for="${issue._id}"]`);
+    if (!box) return;
+
+    const submitterId = String(issue.submittedBy?._id || issue.submittedBy || "");
+    const engagedInstId = String(issue.engagedInstitution?._id || issue.engagedInstitution || "");
+    const currentInstId = String(currentProfile?._id || currentProfile?.id || "");
+
+    const isSubmitter = submitterId && submitterId === currentUserId;
+    const isEngagedInst = role === "institution" && currentInstId && engagedInstId === currentInstId;
+    const isAdmin = role === "admin";
+    const isSelectedByUser = userSelections.includes(String(issue._id));
+
+    // 1. Admin Review Button for pending submissions
+    if (isAdmin && issue.status === "pending_review") {
+      box.innerHTML = `<button class="btn-primary-small" data-act="approve">Approve Challenge</button>`;
+      box.querySelector('[data-act="approve"]').onclick = async () => {
+        try {
+          await api(`/issues/${issue._id}/approve`, { method: "PATCH" });
+          loadIssues();
+        } catch (err) {
+          alert("Approval failed: " + err.message);
+        }
+      };
+      return;
+    }
+
+    // 2. Selected State (Checked badge & Cancel button)
+    if (isSelectedByUser) {
+      box.innerHTML = `
+        <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+          <span style="display: inline-flex; align-items: center; gap: 0.35rem; color: #166534; background: #dcfce7; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; border: 1px solid #bbf7d0;">
+            ✓ Selected to Solve
+          </span>
+          <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.65rem; color: #b91c1c; border-color: #fca5a5; cursor: pointer;" data-act="cancel-select">
+            Cancel Selection
+          </button>
+        </div>`;
+
+      box.querySelector('[data-act="cancel-select"]').onclick = () => {
+        userSelections = userSelections.filter((id) => id !== String(issue._id));
+        saveSelectedIssuesForUser(currentUserId, userSelections);
+        wireIssueCardActions(issues);
+      };
+      return;
+    }
+
+    // 3. Unselected State for logged-in accounts
+    if (["student", "faculty", "citizen", "institution"].includes(role) && issue.status === "approved") {
+      box.innerHTML = `
+        <button class="btn-secondary" style="margin-top: 0.75rem; font-size: 0.82rem; padding: 0.45rem 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;" data-act="select-issue">
+          <span>✦</span> Select this Challenge
+        </button>`;
+
+      box.querySelector('[data-act="select-issue"]').onclick = async () => {
+        if (role === "institution" && !issue.engagedInstitution) {
+          try {
+            await api(`/issues/${issue._id}/engage`, { method: "PATCH" });
+          } catch (e) {
+            // continue gracefully
+          }
+        }
+
+        userSelections.push(String(issue._id));
+        saveSelectedIssuesForUser(currentUserId, userSelections);
+        wireIssueCardActions(issues);
+      };
+      return;
+    }
+
+    // 4. Mark Solved action for creators / engaged institutions / admins
+    if (issue.status !== "solved" && issue.status !== "rejected") {
+      if (isSubmitter || isEngagedInst || isAdmin) {
+        box.innerHTML = `
+          <button class="btn-secondary" style="margin-top: 0.75rem; color: #b91c1c; border-color: #fca5a5; font-size: 0.82rem; padding: 0.4rem 0.8rem; cursor: pointer;" data-act="mark-complete">
+            ✓ End & Mark Solved
+          </button>`;
+
+        box.querySelector('[data-act="mark-complete"]').onclick = async () => {
+          if (!confirm("Are you sure you want to mark this challenge as completed?")) return;
+          try {
+            await api(`/issues/${issue._id}/complete`, { method: "PATCH" });
+            alert("Challenge marked as completed!");
+            loadIssues();
+          } catch (err) {
+            alert("Error closing challenge: " + err.message);
+          }
+        };
+      }
+    }
+  });
+}
+
+/* ================= RAISE ISSUE ================= */
+document.getElementById("issue-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     await api("/issues", {
@@ -206,7 +395,7 @@ document.getElementById("issue-form").addEventListener("submit", async (e) => {
         description: document.getElementById("issue-desc").value,
       },
     });
-    setMsg("issue-msg", "Submitted!", true);
+    setMsg("issue-msg", "Challenge submitted successfully!", true);
     e.target.reset();
     loadIssues();
   } catch (err) {
@@ -214,210 +403,184 @@ document.getElementById("issue-form").addEventListener("submit", async (e) => {
   }
 });
 
-document.getElementById("btn-refresh-issues").addEventListener("click", loadIssues);
-document.getElementById("btn-load-funding").addEventListener("click", loadFunding);
+/* ================= AUTH MODAL TRIGGERS ================= */
+const authModal = document.getElementById("auth-modal");
+const btnShowLogin = document.getElementById("btn-show-login");
+const btnShowRegister = document.getElementById("btn-show-register");
+const btnHeroSubmit = document.getElementById("btn-hero-submit");
+const modalClose = document.getElementById("modal-close");
+const modalBackdrop = document.getElementById("modal-backdrop");
 
-/* ---------- render the challenge list, with role-appropriate actions per card ---------- */
-async function loadIssues() {
-  const container = document.getElementById("issue-list");
-  container.textContent = "Loading…";
-  try {
-    const { issues } = await api("/issues");
-    container.innerHTML = issues.map(issueCardHTML).join("") || "<p>No challenges yet.</p>";
-    wireIssueCardActions(issues);
-  } catch (err) {
-    container.textContent = `Error: ${err.message}`;
+function openAuth(tab) {
+  authModal.classList.remove("hidden");
+  document.querySelector(`.tab-clean[data-tab="${tab}"]`)?.click();
+}
+
+btnShowLogin?.addEventListener("click", () => openAuth("login"));
+btnShowRegister?.addEventListener("click", () => openAuth("register"));
+
+btnHeroSubmit?.addEventListener("click", () => {
+  if (currentUser) {
+    document.getElementById("dashboard").scrollIntoView({ behavior: "smooth" });
+  } else {
+    openAuth("login");
   }
-}
+});
 
-// Statuses during which the assigned faculty can post updates / mark complete - mirrors the backend.
-const ACTIVE_FOR_FACULTY = ["assigned", "team_formed", "seeking_funds", "funded", "in_progress"];
-const COMPLETABLE = ["team_formed", "seeking_funds", "funded", "in_progress"];
-
-function issueCardHTML(issue) {
-  const updates = (issue.updates || []).slice().reverse(); // newest first
-  const updatesHTML = updates.map((u) => `
-    <div class="update-item">
-      <strong>${escapeHTML(u.postedBy?.name || "Faculty")}</strong>
-      <span class="update-time">${new Date(u.at).toLocaleString()}</span>
-      <p>${escapeHTML(u.text)}</p>
-    </div>`).join("");
-
-  return `
-    <div class="issue-card" data-id="${issue._id}">
-      <h4>${escapeHTML(issue.title)}</h4>
-      <div class="issue-meta">
-        <span class="tag">${issue.status}</span>
-        <span>${escapeHTML(issue.district)}</span>
-        <span>${escapeHTML(issue.sector)}</span>
-      </div>
-      <p>${escapeHTML(issue.description)}</p>
-      ${updates.length ? `<div class="issue-updates"><strong>Progress updates</strong>${updatesHTML}</div>` : ""}
-      <div class="issue-actions" data-actions-for="${issue._id}"></div>
-    </div>`;
-}
-
-// Builds the buttons/forms available for THIS issue given the logged-in user's role + the issue's status.
-function wireIssueCardActions(issues) {
-  issues.forEach((issue) => {
-    const box = document.querySelector(`[data-actions-for="${issue._id}"]`);
-    if (!box) return;
-    const role = currentUser.role;
-
-    if (role === "admin" && issue.status === "pending_review") {
-      box.innerHTML = `<button data-act="approve">Approve</button><button data-act="reject" class="secondary">Reject</button>`;
-      box.querySelector('[data-act="approve"]').onclick = () => runAction(`/issues/${issue._id}/approve`, "PATCH");
-      box.querySelector('[data-act="reject"]').onclick = () => runAction(`/issues/${issue._id}/reject`, "PATCH");
-    }
-
-    else if (role === "institution" && issue.status === "approved") {
-      box.innerHTML = `<button data-act="engage">Engage with this challenge</button>`;
-      box.querySelector('[data-act="engage"]').onclick = () => runAction(`/issues/${issue._id}/engage`, "PATCH");
-    }
-
-    else if (role === "institution" && issue.status === "engaged") {
-      const options = facultyDirectory.map((f) => `<option value="${f.id}">${escapeHTML(f.name || f.email)}</option>`).join("");
-      box.innerHTML = `<select data-role="faculty-select"><option value="">Choose faculty…</option>${options}</select>
-                        <button data-act="assign">Assign faculty</button>`;
-      box.querySelector('[data-act="assign"]').onclick = () => {
-        const facultyId = box.querySelector('[data-role="faculty-select"]').value;
-        if (!facultyId) return alert("Pick a faculty member first.");
-        runAction(`/issues/${issue._id}/assign-faculty`, "PATCH", { facultyId });
-      };
-    }
-
-    else if (role === "faculty" && issue.status === "assigned") {
-      const checks = studentDirectory.map((s) =>
-        `<label style="display:block;font-weight:normal"><input type="checkbox" value="${s.id}"> ${escapeHTML(s.name || s.email)} (${escapeHTML(s.branch || "")})</label>`
-      ).join("");
-      box.innerHTML = `<div><input type="text" placeholder="Team name" data-role="team-name" style="margin-bottom:.4em"></div>
-                        <div>${checks || "<em>No registered students yet</em>"}</div>
-                        <button data-act="create-team">Form team</button>`;
-      box.querySelector('[data-act="create-team"]').onclick = () => {
-        const name = box.querySelector('[data-role="team-name"]').value;
-        const studentIds = [...box.querySelectorAll('input[type="checkbox"]:checked')].map((c) => c.value);
-        if (!name) return alert("Give the team a name.");
-        runAction(`/teams`, "POST", { issueId: issue._id, name, studentIds });
-      };
-    }
-
-    else if (role === "faculty" && (issue.status === "team_formed" || issue.status === "in_progress")) {
-      // Team is formed - funding is optional. Faculty can either raise a
-      // funding request or just start solving without one.
-      box.innerHTML = `<input type="number" placeholder="Amount needed (₹)" data-role="amount" style="width:140px">
-                        <button data-act="request-funding">Request funding</button>
-                        ${issue.status === "team_formed" ? '<button data-act="skip-funding" class="secondary">Skip funding — start solving</button>' : ""}`;
-      box.querySelector('[data-act="request-funding"]').onclick = () => {
-        const amountNeeded = Number(box.querySelector('[data-role="amount"]').value);
-        if (!amountNeeded) return alert("Enter an amount.");
-        runAction(`/funding-requests`, "POST", { issueId: issue._id, amountNeeded });
-      };
-      const skipBtn = box.querySelector('[data-act="skip-funding"]');
-      if (skipBtn) skipBtn.onclick = () => runAction(`/issues/${issue._id}/start`, "PATCH");
-    }
-
-    else if (role === "faculty" && ACTIVE_FOR_FACULTY.includes(issue.status)) {
-      // handled entirely by appendFacultyExtras below (update form / mark complete) - no separate primary action here
-      box.innerHTML = "";
-    }
-
-    else {
-      box.innerHTML = `<em style="font-size:.8rem;color:#4c5b62">No action available for your role at this stage.</em>`;
-    }
-
-    appendFacultyExtras(box, issue); // progress updates + "mark completed", independent of the status branch above
-  });
-}
-
-// Adds a "post an update" form and, when eligible, a "mark completed" button
-// below whatever primary action buttons were rendered above. Uses
-// insertAdjacentHTML (not innerHTML +=) so it doesn't wipe out the
-// listeners already attached to the primary action buttons.
-function appendFacultyExtras(box, issue) {
-  if (currentUser.role !== "faculty") return;
-  if (!currentProfile?.id || String(issue.assignedFaculty) !== String(currentProfile.id)) return;
-  if (!ACTIVE_FOR_FACULTY.includes(issue.status)) return;
-
-  const wrapId = `extras-${issue._id}`;
-  const completeBtn = COMPLETABLE.includes(issue.status)
-    ? `<button data-act="mark-complete" class="secondary">Mark project completed</button>` : "";
-
-  box.insertAdjacentHTML("beforeend", `
-    <div class="update-form" id="${wrapId}">
-      <textarea data-role="update-text" placeholder="Post a progress update…" rows="2"></textarea>
-      <div style="margin-top:.4em;display:flex;gap:.5em;flex-wrap:wrap">
-        <button data-act="post-update">Post update</button>
-        ${completeBtn}
-      </div>
-    </div>`);
-
-  const wrap = document.getElementById(wrapId);
-  wrap.querySelector('[data-act="post-update"]').onclick = () => {
-    const text = wrap.querySelector('[data-role="update-text"]').value;
-    if (!text.trim()) return alert("Write something first.");
-    runAction(`/issues/${issue._id}/updates`, "POST", { text });
-  };
-  const completeButton = wrap.querySelector('[data-act="mark-complete"]');
-  if (completeButton) {
-    completeButton.onclick = () => {
-      if (confirm("Mark this project as completed? This is final.")) {
-        runAction(`/issues/${issue._id}/complete`, "PATCH");
-      }
-    };
-  }
-}
-
-async function runAction(path, method, body) {
-  try {
-    await api(path, { method, body });
-    loadIssues();
-    loadFunding();
-  } catch (err) {
-    alert(err.message);
-  }
-}
-
-/* ---------- funding requests, with a pledge form for funding orgs ---------- */
-async function loadFunding() {
-  const container = document.getElementById("funding-list");
-  const panel = document.getElementById("funding-browse-panel");
-  // Only funding orgs need to see/act on this; keep the dashboard uncluttered for other roles.
-  if (currentUser.role !== "funding_org") { panel.classList.add("hidden"); return; }
-  panel.classList.remove("hidden");
-
-  container.textContent = "Loading…";
-  try {
-    const { fundingRequests } = await api("/funding-requests?status=open");
-    container.innerHTML = fundingRequests.map((fr) => `
-      <div class="funding-card" data-id="${fr._id}">
-        <strong>${escapeHTML(fr.issue?.title || "Untitled")}</strong> — needs ₹${fr.amountNeeded}, raised ₹${fr.amountRaised}
-        <form data-role="pledge-form">
-          <input type="number" placeholder="Amount" required>
-          <button type="submit">Pledge</button>
-        </form>
-      </div>`).join("") || "<p>No open funding requests right now.</p>";
-
-    container.querySelectorAll('[data-role="pledge-form"]').forEach((form) => {
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const id = form.closest(".funding-card").dataset.id;
-        const amount = Number(form.querySelector("input").value);
-        try {
-          await api(`/funding-requests/${id}/pledge`, { method: "POST", body: { amount } });
-          loadFunding();
-        } catch (err) {
-          alert(err.message);
-        }
-      });
-    });
-  } catch (err) {
-    container.textContent = `Error: ${err.message}`;
-  }
-}
+modalClose?.addEventListener("click", () => authModal.classList.add("hidden"));
+modalBackdrop?.addEventListener("click", () => authModal.classList.add("hidden"));
 
 function escapeHTML(str = "") {
   return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-/* ---------- restore session on refresh ---------- */
-if (token && currentUser) showDashboard();
+/* ================= INITIALIZATION ================= */
+setupVoiceDictation();
+
+if (token && currentUser) {
+  showDashboard();
+} else {
+  loadIssues();
+}
+
+/* ================= FOOTER & INFO MODALS ================= */
+const footerInfoContent = {
+  about: {
+    title: "About Sangam",
+    body: "<p><strong>Sangam</strong> is Jharkhand's centralized civic-innovation bridge. We connect everyday citizens, local panchayats, and civic bodies with leading engineering colleges, universities, and research institutes to prototype practical solutions for grassroots district challenges.</p>"
+  },
+  "how-it-works": {
+    title: "How It Works",
+    body: "<p>1. <strong>Citizens & Reps</strong> submit verified local infrastructural or civic issues.<br>2. <strong>Admins</strong> review and approve entries for public engagement.<br>3. <strong>Academic institutions & student teams</strong> claim challenges as capstone or funded research projects.<br>4. <strong>Solutions</strong> are deployed and validated in the district.</p>"
+  },
+  guidelines: {
+    title: "Submission Guidelines",
+    body: "<p>Please ensure submitted problems include specific geographic districts, clear environmental or operational impact descriptions, and non-partisan language. Commercial solicitations or personal grievances outside civic scope are rejected.</p>"
+  },
+  privacy: {
+    title: "Privacy Policy",
+    body: "<p>Citizen personal contact information, phone numbers, and direct email addresses are strictly masked and protected under public grievance guidelines. Only verified district nodal institutions have access to follow-up triage channels.</p>"
+  },
+  terms: {
+    title: "Terms of Service",
+    body: "<p>All submissions made under Sangam are dedicated to the public benefit. By submitting a problem or proposal, participants agree that non-confidential project milestones and public outcomes can be openly showcased across the state innovation repository.</p>"
+  },
+  "open-data": {
+    title: "Open Data Charter",
+    body: "<p>Sangam provides anonymized real-time API endpoints covering district challenge categories, problem resolution timelines, and university participation metrics to foster transparent civic accountability.</p>"
+  },
+  contact: {
+    title: "Support & Helpdesk",
+    body: "<p>Need technical assistance or help claiming a project? Reach out to the technical team at <strong>support@sangam.gov.in</strong> or phone the State Innovation Cell helpdesk at <strong>+91 (0651) 244-0000</strong>.</p>"
+  },
+  nodal: {
+    title: "District Nodal Officers",
+    body: "<p>Each of the 24 districts of Jharkhand maintains a verified District Innovation Nodal Officer stationed at the District Collectorate to verify community problem statements and expedite site testing permissions.</p>"
+  },
+  faq: {
+    title: "Frequently Asked Questions",
+    body: "<p><strong>Can any student team join?</strong> Yes, any enrolled undergraduate or graduate team under an affiliated Jharkhand university can participate.<br><br><strong>Is project funding provided?</strong> Select projects can apply directly for university seed grants or partner CSR innovation pools.</p>"
+  }
+};
+
+const infoModal = document.getElementById("info-modal");
+const infoTitle = document.getElementById("info-modal-title");
+const infoBody = document.getElementById("info-modal-body");
+const infoClose = document.getElementById("info-modal-close");
+const infoBackdrop = document.getElementById("info-modal-backdrop");
+
+document.querySelectorAll("[data-footer-modal]").forEach((link) => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    const key = link.getAttribute("data-footer-modal");
+    const data = footerInfoContent[key];
+    if (data && infoModal) {
+      infoTitle.textContent = data.title;
+      infoBody.innerHTML = data.body;
+      infoModal.classList.remove("hidden");
+    }
+  });
+});
+
+// ================= 1. TEXT-TO-SPEECH (READ ALOUD) =================
+function speakText(text, btnElement) {
+  if (!("speechSynthesis" in window)) {
+    alert("Text-to-speech is not supported on this browser.");
+    return;
+  }
+
+  // Toggle off if already speaking
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    if (btnElement) btnElement.innerHTML = "🔊 Listen";
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  // Matches selected speech language if available, defaults to Indian English
+  const selectedLang = document.getElementById("voice-lang-select")?.value || "en-IN";
+  utterance.lang = selectedLang;
+  utterance.rate = 0.95;
+
+  if (btnElement) btnElement.innerHTML = "⏹ Stop";
+
+  utterance.onend = () => {
+    if (btnElement) btnElement.innerHTML = "🔊 Listen";
+  };
+  utterance.onerror = () => {
+    if (btnElement) btnElement.innerHTML = "🔊 Listen";
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+// ================= 2. SPEECH-TO-TEXT (VOICE DICTATION) =================
+function setupVoiceDictation() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  document.querySelectorAll(".btn-voice-dictate").forEach((btn) => {
+    if (btn.dataset.voiceBound) return;
+    btn.dataset.voiceBound = "true";
+
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-target");
+      const targetInput = document.getElementById(targetId);
+      if (!targetInput) return;
+
+      const recognition = new SpeechRecognition();
+      const langChoice = document.getElementById("voice-lang-select")?.value || "en-IN";
+      recognition.lang = langChoice;
+      recognition.interimResults = false;
+
+      btn.style.background = "#fee2e2";
+      btn.innerHTML = "🔴";
+
+      recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        targetInput.value = targetInput.value ? `${targetInput.value} ${transcript}` : transcript;
+      };
+
+      recognition.onspeechend = () => {
+        recognition.stop();
+        btn.style.background = "#f8fafc";
+        btn.innerHTML = "🎤";
+      };
+
+      recognition.onerror = () => {
+        btn.style.background = "#f8fafc";
+        btn.innerHTML = "🎤";
+      };
+
+      recognition.start();
+    });
+  });
+}
+
+const closeInfoModal = () => infoModal?.classList.add("hidden");
+infoClose?.addEventListener("click", closeInfoModal);
+infoBackdrop?.addEventListener("click", closeInfoModal);
+
+// Auto-sync current year in copyright
+const yearEl = document.getElementById("footer-year");
+if (yearEl) yearEl.textContent = new Date().getFullYear();
