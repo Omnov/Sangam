@@ -41,6 +41,7 @@ const createIssue = asyncHandler(async (req, res) => {
       (i.e. something to potentially fund, or something they may have
       already pledged to)
 */
+
 const listIssues = asyncHandler(async (req, res) => {
   const { status, district, sector } = req.query;
   const conditions = [];
@@ -48,8 +49,13 @@ const listIssues = asyncHandler(async (req, res) => {
   if (district) conditions.push({ district });
   if (sector) conditions.push({ sector });
 
-  const role = req.user.role;
-  if (role === "institution") {
+  // Safe role check (undefined if guest/unauthenticated)
+  const role = req.user?.role;
+
+  if (!role) {
+    // Guest/public visitor: only view approved, in-progress, or solved challenges
+    conditions.push({ status: { $in: ["approved", "in_progress", "solved"] } });
+  } else if (role === "institution") {
     const institution = await InstitutionProfile.findOne({ user: req.user._id });
     conditions.push({
       $or: [
@@ -59,18 +65,23 @@ const listIssues = asyncHandler(async (req, res) => {
     });
   } else if (role === "faculty") {
     const faculty = await FacultyProfile.findOne({ user: req.user._id });
-    conditions.push({ assignedFaculty: faculty?._id });
-  } else if (role === "student") {
-    const student = await StudentProfile.findOne({ user: req.user._id });
-    const teams = student ? await Team.find({ students: student._id }).select("issue") : [];
-    conditions.push({ _id: { $in: teams.map((t) => t.issue) } });
+    conditions.push({
+      $or: [
+        { status: "approved" },
+        { assignedFaculty: faculty?._id }
+      ]
+    });
   } else if (role === "funding_org") {
     conditions.push({ fundingRequest: { $ne: null } });
   }
-  // citizen / admin: no extra restriction - full visibility.
+  // citizen / admin: no extra restrictions - full visibility.
 
   const filter = conditions.length ? { $and: conditions } : {};
-  const issues = await Issue.find(filter).sort({ createdAt: -1 }).limit(200).populate("updates.postedBy", "name");
+  const issues = await Issue.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .populate("updates.postedBy", "name");
+
   res.json({ issues });
 });
 
